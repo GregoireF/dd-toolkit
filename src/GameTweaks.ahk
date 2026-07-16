@@ -4,9 +4,9 @@
 #Include Lib\Modules\GameTweaksModule.ahk
 
 ;@Ahk2Exe-SetName GameTweaks
-;@Ahk2Exe-SetDescription Applies known, documented Dungeon Defenders Redux config fixes
+;@Ahk2Exe-SetDescription Applies known and documented Dungeon Defenders Redux config fixes
 ;@Ahk2Exe-SetVersion 0.1.0.0
-;@Ahk2Exe-SetCopyright DD Toolkit contributors, MIT License
+;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Standalone tool (not a background macro — no repeating hotkeys):
 ; double-click, read what it does, click the button. Deliberately shows an

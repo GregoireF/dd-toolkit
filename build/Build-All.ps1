@@ -40,8 +40,13 @@ $failed = @()
 foreach ($script in $scripts) {
     $out = Join-Path $dist ($script.BaseName + ".exe")
     Write-Output "Compiling $($script.Name) -> $out"
-    & $Ahk2Exe /in "$($script.FullName)" /out "$out" /base "$Base" /silent verbose
-    if ($LASTEXITCODE -ne 0) {
+    # Ahk2Exe via the `&` call operator returns immediately with an empty
+    # $LASTEXITCODE instead of waiting for real completion (observed in
+    # practice: every compile silently "succeeded" per $LASTEXITCODE while
+    # producing no output file at all). Start-Process -Wait -PassThru
+    # reliably waits and reports the real exit code.
+    $proc = Start-Process -FilePath $Ahk2Exe -ArgumentList @("/in", $script.FullName, "/out", $out, "/base", $Base, "/silent", "verbose") -Wait -PassThru -NoNewWindow
+    if ($proc.ExitCode -ne 0 -or -not (Test-Path $out)) {
         $failed += $script.Name
     }
 }

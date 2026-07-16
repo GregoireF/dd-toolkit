@@ -4,7 +4,7 @@
 ;@Ahk2Exe-SetName Setup
 ;@Ahk2Exe-SetDescription DD Toolkit installer - desktop shortcut and optional Windows startup
 ;@Ahk2Exe-SetVersion 0.1.0.0
-;@Ahk2Exe-SetCopyright DD Toolkit contributors, MIT License
+;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Entirely optional convenience tool for non-technical users: creates a
 ; Desktop shortcut to DDToolkit.exe (and, if asked, a shortcut in the

@@ -6,7 +6,7 @@
 ;@Ahk2Exe-SetName TowerStacking
 ;@Ahk2Exe-SetDescription Tower stacking macro for Dungeon Defenders Redux
 ;@Ahk2Exe-SetVersion 0.1.0.0
-;@Ahk2Exe-SetCopyright DD Toolkit contributors, MIT License
+;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Standalone entry point: just starts the module. The module itself
 ; (src/Lib/Modules/TowerStackingModule.ahk) holds the real logic, shared

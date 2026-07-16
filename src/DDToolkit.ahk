@@ -13,7 +13,7 @@ Persistent() ; guarantee residency even if every module ends up disabled in sett
 ;@Ahk2Exe-SetName DDToolkit
 ;@Ahk2Exe-SetDescription DD Toolkit - unified control panel for every Dungeon Defenders Redux macro
 ;@Ahk2Exe-SetVersion 0.1.0.0
-;@Ahk2Exe-SetCopyright DD Toolkit contributors, MIT License
+;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Single tray-resident app running every macro in one process, with a
 ; tabbed settings window instead of hand-editing settings.ini. This is the

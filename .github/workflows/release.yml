@@ -63,6 +63,22 @@ jobs:
           Expand-Archive -Path $zipPath -DestinationPath "$env:RUNNER_TEMP\ahk"
           echo "AHK_DIR=$env:RUNNER_TEMP\ahk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
+      # Ahk2Exe (the compiler) isn't bundled in the portable zip above --
+      # it's a separate, on-demand download even for a full AutoHotkey
+      # install (confirmed against AutoHotkey/AutoHotkeyUX's own
+      # install-ahk2exe.ahk). Same official-source approach as above.
+      - name: Install Ahk2Exe compiler (official portable release)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/AutoHotkey/Ahk2Exe/releases/latest"
+          $asset = $release.assets | Select-Object -First 1
+          if (-not $asset) { throw "No asset found on latest Ahk2Exe release." }
+
+          $zipPath = "$env:RUNNER_TEMP\ahk2exe.zip"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath "$env:AHK_DIR\Compiler"
+
       - name: Syntax smoke tests
         shell: pwsh
         run: .\tests\Test-Syntax.ps1 -AhkExe "$env:AHK_DIR\AutoHotkey64.exe"
