@@ -57,6 +57,46 @@ fichier. Passe-le en lecture seule après coup si tu veux éviter d'avoir à
 réappliquer le correctif (clic droit sur `UDKEngine.ini` → Propriétés →
 coche "Lecture seule").
 
+## Tearing d'écran (V-Sync) — automatisé, optionnel
+
+**Symptôme** : déchirures visuelles horizontales pendant les mouvements de caméra.
+
+**Cause documentée** : `UseVsync=False` par défaut dans `UDKEngine.ini`.
+
+**Source** : [Steam Community — discussion "Any more graphic options in the full game?"](https://steamcommunity.com/app/65800/discussions/0/846956740726596855/) (section `[SystemSettings]`, clé `UseVsync`).
+
+**Ce que fait notre outil** : contrairement au correctif textures (un vrai bug sans contrepartie), activer la V-Sync est une **préférence** — ça supprime le tearing mais ajoute un peu de latence d'entrée, comme dans la plupart des jeux. C'est pour ça que c'est une case à cocher (décochée par défaut), pas un correctif automatique. Onglet "Correctifs jeu" de DDToolkit, ou `GameTweaks.ahk` : cherche la ligne `UseVsync=` n'importe où dans `UDKEngine.ini` et la remplace par `True` ou `False` selon la case cochée. Même sauvegarde horodatée que le correctif textures avant toute écriture.
+
+**Vérifié sur une vraie installation** : la ligne `UseVsync=False` a été retrouvée telle quelle, une seule fois, dans la section `[SystemSettings]` du `UDKEngine.ini` de l'installation Steam testée.
+
+## Performances (ombres, occlusion ambiante, bloom, LOD) — automatisé, optionnel
+
+**Symptôme** : FPS bas, en particulier avec les ombres dynamiques et l'occlusion ambiante activées.
+
+**Source** : [collection de tweaks UDKEngine.ini partagée sur r/dungeondefenders](https://www.reddit.com/r/dungeondefenders/comments/o7cj9/tip_collection_of_udkengineini_tweaks_that_might/) — l'auteur rapporte un passage de ~30 à 60 FPS avec les deux premiers réglages seuls (V-Sync activée).
+
+**Ce que fait notre outil** : comme la V-Sync, c'est une **préférence** (qualité visuelle contre FPS), donc un bouton, pas un correctif automatique. Cherche puis remplace, n'importe où dans `UDKEngine.ini` :
+
+| Clé | Valeur appliquée |
+| --- | --- |
+| `DetailMode` | `0` |
+| `GraphicsQualityMode` | `0` |
+| `DynamicShadows` | `False` |
+| `AmbientOcclusion` | `False` |
+| `UseHighQualityBloom` | `False` |
+| `SkeletalMeshLODBias` | `1` |
+| `ParticleLODBias` | `2` |
+| `MaxAnisotropy` | `1` |
+| `MaxMultisamples` | `1` |
+
+Ces deux premiers réglages (`DetailMode`, `GraphicsQualityMode`) sont ceux cités par la source comme ayant le plus d'impact — entre autres, ils retirent le cel-shading (contours façon dessin animé) et baissent la qualité des auras du Monk, sans repasser tout le jeu en qualité "Basse". Les autres ont un effet individuellement plus faible mais s'additionnent.
+
+**Vérifié sur une vraie installation** : les 9 clés ont été retrouvées telles quelles, chacune une seule fois, toutes dans la section `[SystemSettings]` du `UDKEngine.ini` de l'installation Steam testée (valeurs trouvées : `DetailMode=2`, `GraphicsQualityMode=2`, `DynamicShadows=True`, `AmbientOcclusion=True`, `UseHighQualityBloom=True`, `SkeletalMeshLODBias=0`, `ParticleLODBias=0`, `MaxAnisotropy=8`, `MaxMultisamples=1`).
+
+**Non automatisé — désactivation du Triple Buffering** : la même source recommande de désactiver le Triple Buffering (avec V-Sync activée) pour réduire les plantages, notamment en mode fenêtré ou à l'alt-tab. Aucun nom de clé exact n'est donné dans la source, et **aucune clé contenant "TripleBuffer" n'a été trouvée** dans le `UDKEngine.ini` réel testé cette session — donc rien à chercher/remplacer de façon fiable. Si tu trouves le nom de clé réel (avec source), ouvre une PR.
+
+**Limite connue** (comme pour les textures et la V-Sync) : une mise à jour du jeu peut réinitialiser ces valeurs — voir la note "Lecture seule" plus haut.
+
 ## Écran noir / plantage au lancement — non automatisé, documenté ici
 
 **Symptôme** : écran noir après avoir cliqué sur Jouer, ou le jeu ne se
