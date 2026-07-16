@@ -96,6 +96,7 @@ class SettingsWindow {
     static ddlCSButton := ""
     static txtGT := ""
     static chkGTLowVram := ""
+    static chkGTVsync := ""
 
     static Open(*) {
         if (this.Instance != "") {
@@ -168,6 +169,7 @@ class SettingsWindow {
         g.Add("Text", , "Tolérance de détection des couleurs (0 = exact) :")
         this.editAWTolerance := g.Add("Edit", "w150", AbilityWheelModule.ToleranceRGB)
         g.Add("Text", "w460", "Les combinaisons (Spin.*) et les couleurs se règlent encore directement dans config/settings.ini — voir CONTRIBUTING.md.")
+        g.Add("Text", "w460 y+10", "Un spin qui ne se déclenche pas ? En jeu, appuie sur Ctrl+Alt+D (DiagnosticKey) : la roue s'ouvre et un rapport affiche la vraie couleur lue dans chaque case, à comparer avec [AbilityWheelColors]. Voir le README.")
 
         ; ---------------- ChargeShot ----------------
         tabs.UseTab(5)
@@ -195,6 +197,15 @@ class SettingsWindow {
         this.chkGTLowVram := g.Add("CheckBox", , "Ma carte graphique a moins de 3 Go de VRAM")
         btnFix := g.Add("Button", "w200", "Corriger les textures maintenant")
         btnFix.OnEvent("Click", (*) => GameTweaksModule.ApplyTextureFix(this.chkGTLowVram.Value = 1))
+
+        g.Add("Text", "w460 y+15", "Optionnel : active la V-Sync pour supprimer le tearing d'ecran, au prix d'un peu de latence en plus (comme sur la plupart des jeux). Decoche pour la desactiver a la place.")
+        this.chkGTVsync := g.Add("CheckBox", , "Activer la V-Sync")
+        btnVsync := g.Add("Button", "w200", "Appliquer le reglage V-Sync")
+        btnVsync.OnEvent("Click", (*) => GameTweaksModule.ApplyVsyncFix(this.chkGTVsync.Value = 1))
+
+        g.Add("Text", "w460 y+15", "Optionnel : baisse quelques reglages graphiques cibles (ombres dynamiques, ambient occlusion, cel-shading, LOD) pour gagner en FPS sans repasser tout le jeu en qualite 'Basse'.")
+        btnPerf := g.Add("Button", "w200", "Ameliorer les performances")
+        btnPerf.OnEvent("Click", (*) => GameTweaksModule.ApplyPerformanceFix())
 
         tabs.UseTab() ; stop routing controls into a tab
 

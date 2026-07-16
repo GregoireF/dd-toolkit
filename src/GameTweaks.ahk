@@ -24,6 +24,16 @@ g.Add("Text", "w440", "Corrige les textures floues (limite de streaming trop bas
 chkLowVram := g.Add("CheckBox", , "Ma carte graphique a moins de 3 Go de VRAM")
 btnApply := g.Add("Button", "w200 y+15 Default", "Corriger les textures")
 btnApply.OnEvent("Click", (*) => GameTweaksModule.ApplyTextureFix(chkLowVram.Value = 1))
-btnClose := g.Add("Button", "w200 x+10", "Fermer")
+
+g.Add("Text", "w440 y+15", "Optionnel : active la V-Sync pour supprimer le tearing d'écran, au prix d'un peu de latence en plus (comme sur la plupart des jeux). Décoche pour la désactiver à la place.")
+chkVsync := g.Add("CheckBox", , "Activer la V-Sync")
+btnVsync := g.Add("Button", "w200", "Appliquer le réglage V-Sync")
+btnVsync.OnEvent("Click", (*) => GameTweaksModule.ApplyVsyncFix(chkVsync.Value = 1))
+
+g.Add("Text", "w440 y+15", "Optionnel : baisse quelques réglages graphiques ciblés (ombres dynamiques, ambient occlusion, cel-shading, LOD) pour gagner en FPS sans repasser tout le jeu en qualité « Basse ».")
+btnPerf := g.Add("Button", "w200", "Améliorer les performances")
+btnPerf.OnEvent("Click", (*) => GameTweaksModule.ApplyPerformanceFix())
+
+btnClose := g.Add("Button", "w200 x+10 y+15", "Fermer")
 btnClose.OnEvent("Click", (*) => ExitApp())
 g.Show()

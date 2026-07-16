@@ -17,6 +17,11 @@ class AbilityWheelModule {
     static ToleranceRGB := 2
     static Colors := Map()
     static RegisteredCount := 0
+    ; Separate from the Spin.* hotkeys — reads the 3 slot colors without
+    ; requiring any of them to match, so a real in-game test can show
+    ; exactly what's actually there. Avoids the F-row for the same reason
+    ; every other default in this project does now.
+    static DiagnosticKey := "^!d"
 
     static Init() {
         this.Enabled := DD.ReadBool("AbilityWheel", "Enabled", true)
@@ -25,6 +30,7 @@ class AbilityWheelModule {
 
         this.WheelHotbarSlot := DD.Read("AbilityWheel", "WheelHotbarSlot", "3")
         this.ToleranceRGB := DD.ReadInt("AbilityWheel", "ToleranceRGB", "2")
+        this.DiagnosticKey := DD.Read("AbilityWheel", "DiagnosticKey", "^!d")
         this.RegisteredCount := 0
 
         this.Colors := Map()
@@ -37,6 +43,11 @@ class AbilityWheelModule {
         }
 
         gameCriterion := DD.GameCriterion()
+
+        HotIfWinActive(gameCriterion)
+        Hotkey(this.DiagnosticKey, ObjBindMethod(this, "DiagnoseSlots"))
+        HotIfWinActive()
+
         for key, value in DD.ReadSection("AbilityWheel") {
             if (SubStr(key, 1, 5) != "Spin.")
                 continue
@@ -104,16 +115,9 @@ class AbilityWheelModule {
         return false
     }
 
-    static SpinWheel(colorSlot1, colorSlot2, colorSlot3, spinName) {
-        gameCriterion := DD.GameCriterion()
-        if !WinExist(gameCriterion) {
-            DD.Notify("AbilityWheel", "Le jeu n'est pas au premier plan.")
-            return
-        }
-
-        WinGetPos(, , &winWidth, &winHeight, gameCriterion)
-        CoordMode("Pixel", "Client")
-
+    ; Shared by SpinWheel() and DiagnoseSlots() — computes the 3 slot
+    ; search boxes for whatever window size is currently detected.
+    static ComputeSlotBoxes(winWidth, winHeight, &tlX1, &tlY1, &brX1, &brY1, &tlX2, &tlY2, &brX2, &brY2, &tlX3, &tlY3, &brX3, &brY3) {
         slotOffset := 0.186 * winHeight - 3
         centerY := Round(winHeight / 2)
         centerX := Round(winWidth / 2)
@@ -124,6 +128,19 @@ class AbilityWheelModule {
         this.CalculateSearchBox(&tlX1, &tlY1, &brX1, &brY1, x1, centerY, winWidth, winHeight)
         this.CalculateSearchBox(&tlX2, &tlY2, &brX2, &brY2, x2, centerY, winWidth, winHeight)
         this.CalculateSearchBox(&tlX3, &tlY3, &brX3, &brY3, x3, centerY, winWidth, winHeight)
+    }
+
+    static SpinWheel(colorSlot1, colorSlot2, colorSlot3, spinName) {
+        gameCriterion := DD.GameCriterion()
+        if !WinExist(gameCriterion) {
+            DD.Notify("AbilityWheel", "Le jeu n'est pas au premier plan.")
+            return
+        }
+
+        WinGetPos(, , &winWidth, &winHeight, gameCriterion)
+        CoordMode("Pixel", "Client")
+
+        this.ComputeSlotBoxes(winWidth, winHeight, &tlX1, &tlY1, &brX1, &brY1, &tlX2, &tlY2, &brX2, &brY2, &tlX3, &tlY3, &brX3, &brY3)
 
         Send("{" this.WheelHotbarSlot " DownTemp}")
         Sleep(5)
@@ -143,6 +160,53 @@ class AbilityWheelModule {
             return
         }
         DD.Beep(true)
+    }
+
+    ; Opens the wheel exactly like SpinWheel() does, but instead of
+    ; searching for a match, reads and reports the actual color sitting at
+    ; the center of each of the 3 slot search boxes — win/lose regardless
+    ; of whether it matches anything in [AbilityWheelColors]. Meant to be
+    ; triggered in-game (DiagnosticKey, default Ctrl+Alt+D) when spins
+    ; aren't detecting correctly, to tell you *what's actually there*
+    ; instead of just "no match" — the two most likely explanations being
+    ; wrong hex values for this game version/monitor, or a wrong
+    ; WheelHotbarSlot not actually opening the wheel at all. Writes to
+    ; wheel-diagnostic.txt next to the script/exe in addition to the
+    ; on-screen MsgBox, so the report is easy to copy/share.
+    static DiagnoseSlots(*) {
+        gameCriterion := DD.GameCriterion()
+        if !WinExist(gameCriterion) {
+            DD.Notify("AbilityWheel", "Le jeu n'est pas au premier plan.")
+            return
+        }
+
+        WinGetPos(, , &winWidth, &winHeight, gameCriterion)
+        CoordMode("Pixel", "Client")
+
+        this.ComputeSlotBoxes(winWidth, winHeight, &tlX1, &tlY1, &brX1, &brY1, &tlX2, &tlY2, &brX2, &brY2, &tlX3, &tlY3, &brX3, &brY3)
+
+        Send("{" this.WheelHotbarSlot " DownTemp}")
+        Sleep(5)
+        Send("{" this.WheelHotbarSlot " up}")
+        Sleep(300)
+
+        color1 := PixelGetColor(Round((tlX1 + brX1) / 2), Round((tlY1 + brY1) / 2))
+        color2 := PixelGetColor(Round((tlX2 + brX2) / 2), Round((tlY2 + brY2) / 2))
+        color3 := PixelGetColor(Round((tlX3 + brX3) / 2), Round((tlY3 + brY3) / 2))
+
+        report := "Fenetre detectee : " winWidth "x" winHeight "`n`n"
+        report .= "Zone 1 [" tlX1 "," tlY1 " a " brX1 "," brY1 "] -> couleur lue : " Format("0x{:06X}", color1) "`n"
+        report .= "Zone 2 [" tlX2 "," tlY2 " a " brX2 "," brY2 "] -> couleur lue : " Format("0x{:06X}", color2) "`n"
+        report .= "Zone 3 [" tlX3 "," tlY3 " a " brX3 "," brY3 "] -> couleur lue : " Format("0x{:06X}", color3) "`n`n"
+        report .= "Couleurs connues dans [AbilityWheelColors] :`n"
+        for name, hex in this.Colors
+            report .= "  " name " = " Format("0x{:06X}", hex) "`n"
+        report .= "`nSi aucune des 3 couleurs lues ne ressemble a une couleur connue ci-dessus,"
+        report .= " la roue ne s'est peut-etre pas ouverte (WheelHotbarSlot=" this.WheelHotbarSlot " incorrect ?)"
+        report .= " ou les valeurs hex dans settings.ini doivent etre mises a jour."
+
+        FileAppend(report "`n`n---`n`n", A_ScriptDir "\wheel-diagnostic.txt")
+        MsgBox(report, "DD Toolkit - Diagnostic Roue", "Icon!")
     }
 
     static StatusText() {
