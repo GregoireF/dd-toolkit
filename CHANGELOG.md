@@ -2,6 +2,108 @@
 
 ## Unreleased
 
+### Added
+- `AbilityWheelModule.DiagnoseSlots` : nouvelle touche `DiagnosticKey`
+  (Ctrl+Alt+D par défaut, en jeu) qui ouvre la roue et rapporte la
+  **vraie couleur lue** dans chacune des 3 cases (fenêtre + fichier
+  `wheel-diagnostic.txt`), qu'elle corresponde ou non à une couleur
+  connue — pour diagnostiquer "le spin ne se déclenche pas" avec des
+  données concrètes plutôt qu'un silence. Voir README.md.
+- Suite de tests unitaires réels (`tests/Run-UnitTests.ps1`, framework
+  [AutoHotUnit](https://github.com/joshuacc/AutoHotUnit) vendorisé en MIT
+  dans `tests/vendor/`) — 96 tests couvrant **toute** la logique des 6
+  modules et de `Common.ahk`, `Init()` de chaque module compris (config +
+  enregistrement de hotkeys réels), sans exception : chaque fonction qui
+  parle à l'OS (`Send`, `SendEvent`, `GetKeyState`, `PixelSearch`,
+  `PixelGetColor`, `WinExist`, `WinGetPos`, `SetTimer`, `SetKeyDelay`,
+  `SetMouseDelay`, `Hotkey`, `HotIfWinActive`, `DirSelect`, `MsgBox`,
+  `RegRead`) est remplacée par un double de test (`tests/Shims.ahk`) —
+  AutoHotkey v2 permet à une fonction utilisateur de même nom de
+  remplacer un built-in pour le reste du script (vérifié empiriquement).
+  Résultat : les méthodes qui envoient réellement une touche/clic
+  (`PressAbility`, `Stack`, `FireChargedShot`,
+  `TurboFire`, `SpinWheel`...) tournent pour de vrai en test, mais
+  l'entrée synthétique n'atteint jamais l'OS ; et comme `Hotkey()` lui-même
+  est simulé, aucun test n'enregistre non plus de vrai raccourci auprès
+  de Windows — les noms de touches utilisés dans les fixtures de test
+  n'ont donc plus besoin d'être "obscurs" pour rester sans risque. Aucun
+  risque de clic/frappe simulé sur le vrai bureau, même en poussant la
+  couverture à 100%. Complète `tests/Test-Syntax.ps1` (qui prouve
+  seulement qu'un script charge) avec de vraies assertions ; intégré à
+  `ci.yml`.
+- `GameTweaksModule.ApplyVsyncFix` : bascule optionnelle de la V-Sync
+  (`UseVsync` dans `UDKEngine.ini`) — supprime le tearing d'écran au prix
+  d'un peu de latence, donc une case à cocher plutôt qu'un correctif
+  automatique comme les textures. Voir docs/CORRECTIFS-JEU.md pour la
+  source. Disponible dans l'onglet "Correctifs jeu" de DDToolkit et dans
+  `GameTweaks.ahk`.
+- `GameTweaksModule.ApplyPerformanceFix` : bascule optionnelle d'un lot de
+  9 réglages performance (`DetailMode`, `GraphicsQualityMode`,
+  ombres dynamiques, ambient occlusion, bloom haute qualité, LOD) dans
+  `UDKEngine.ini`, sourcé et vérifié contre une vraie installation. Voir
+  docs/CORRECTIFS-JEU.md.
+
+### Changed
+- **Aucun réglage par défaut n'utilise plus la rangée F (F1-F12).**
+  Certains joueurs réservent cette rangée à un outil séparé qui bascule
+  le focus entre plusieurs clients/personnages simultanés — nos valeurs
+  par défaut ne doivent pas entrer en compétition avec ça.
+  `AutoAbility.ToggleKey` (`F2`→`ScrollLock`), `AutoAbility.PanicKey`
+  (`F3`→`Pause`), `AutoClicker.RightToggleKey` (`F6`→`Insert`). Les
+  fixtures de test suivent la même logique.
+
+### Fixed
+- **`AutoAbilityModule` : armer la boucle ne pressait la touche qu'après
+  le premier intervalle complet (47s par défaut), jamais immédiatement.**
+  `SetTimer` avec une période positive ne se déclenche jamais tout seul
+  à l'instant où il est armé — le premier passage n'arrive qu'une fois
+  l'intervalle entier écoulé (confirmé dans la doc AutoHotkey). Avec le
+  défaut de 47s, armer la macro voulait dire "bip, puis rien pendant
+  47 secondes" — largement de quoi croire que "ça ne marche pas" pour
+  qui teste pendant quelques secondes. `Toggle()` presse maintenant la
+  touche une fois immédiatement en plus d'armer le minuteur répétitif.
+- **`AutoClickerModule` : le réglage `IntervalMs` n'avait jamais d'effet
+  réel sur la vitesse de clic.** Le code appelait `SetKeyDelay(...)`, qui
+  ne régit que les touches *clavier* envoyées par `Send`/`SendEvent` —
+  aucun effet sur les boutons de souris (`LButton`/`RButton`), qui
+  dépendent de `SetMouseDelay` (confirmé dans la doc AutoHotkey). Ce
+  module n'envoie jamais que des boutons de souris, donc l'appel
+  `SetKeyDelay` était un no-op silencieux depuis le début — remplacé par
+  `SetMouseDelay(this.IntervalMs)`.
+- **`AutoAbilityModule` : la touche panique ne stoppait pas réellement le
+  minuteur, en production depuis la v0.1.0.**
+  `Toggle()` armait le minuteur avec `SetTimer(ObjBindMethod(this,
+  "PressAbility"), ...)`, et `Panic()` tentait de le désarmer avec
+  `SetTimer(ObjBindMethod(this, "PressAbility"), 0)` — mais
+  `ObjBindMethod()` crée un nouvel objet à chaque appel, et `SetTimer`
+  identifie "quel minuteur" désarmer uniquement par référence de callback.
+  Deux liaisons distinctes de la même méthode ne sont jamais "le même
+  minuteur" pour `SetTimer`, donc l'appel de désarmement de `Panic()`
+  n'avait tout simplement aucun effet sur le minuteur réellement actif :
+  le raccourci "arrêt d'urgence" mettait à jour l'affichage ("au repos")
+  et jouait le bip d'arrêt, **tout en laissant la macro continuer à
+  presser la touche configurée indéfiniment**. Trouvé et vérifié
+  empiriquement en écrivant les tests ci-dessus (un vrai minuteur de
+  20ms continuait de se déclencher des centaines de ms après son
+  "désarmement"), pas par relecture manuelle. Corrigé en liant
+  `PressAbility` une seule fois (`BoundPressAbility`, dans `Init()`) et
+  en réutilisant cette même référence pour armer et désarmer ; épinglé
+  par un test de non-régression qui compare les deux callbacks par
+  pointeur d'objet (`ObjPtr`).
+- `GameTweaksModule.ComputeFixedContent` (le correctif textures, en
+  production depuis la v0.1.0) : le pattern regex `\s*$` était assez
+  gourmand pour manger le saut de ligne de la ligne modifiée elle-même
+  (`\s` matche aussi `\n`), transformant silencieusement sa fin de ligne
+  CRLF en LF. Inoffensif pour la lecture du fichier par le jeu, mais un
+  vrai bug de correction — remplacé par une *lookahead* `(?=\r?$)`, qui
+  vérifie la fin de ligne sans la consommer. Détecté et corrigé en
+  écrivant les tests unitaires ci-dessus (voir leur test de non-régression
+  CRLF), pas en jeu.
+- `GameTweaksModule.LooksLikeGameFolder` retournait la valeur brute de
+  `DirExist` (ex. `"D"`) plutôt qu'un booléen strict — sans impact en
+  production (`!` s'en accommode) mais un contrat fragile, resserré en
+  `!!DirExist(...)`.
+
 ## [0.1.0] - 2026-07-16
 
 ### Added
