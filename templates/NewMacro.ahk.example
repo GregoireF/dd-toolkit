@@ -1,0 +1,26 @@
+#Requires AutoHotkey v2.0
+#SingleInstance Force
+#Include Lib\Common.ahk
+#Include Lib\Modules\NewMacroModule.ahk
+
+;@Ahk2Exe-SetName NewMacro
+;@Ahk2Exe-SetDescription One-line description of what this macro does
+;@Ahk2Exe-SetVersion 0.1.0.0
+;@Ahk2Exe-SetCopyright DD Toolkit contributors, MIT License
+
+; Standalone wrapper — copy into src/ under a real name (e.g.
+; src/AutoRepair.ahk) alongside its module (see
+; templates/NewMacroModule.ahk.example, which has the real checklist).
+; This file only starts the module and reports its state; do not put any
+; logic here.
+;
+; Also add the new module's Init() call to src/DDToolkit.ahk (and its
+; #Include) so it's available from the unified app too, then update
+; README.md (script list + § Architecture) and CHANGELOG.md (Added).
+
+NewMacroModule.Init()
+
+if NewMacroModule.Enabled
+    DD.Notify("NewMacro", NewMacroModule.ToggleKey " pour activer/désactiver.")
+else
+    DD.Notify("NewMacro", "Desactive dans settings.ini ([NewMacro] Enabled=false).")

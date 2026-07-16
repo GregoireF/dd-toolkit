@@ -1,0 +1,60 @@
+#Requires AutoHotkey v2.0
+
+; Copy into src/Lib/Modules/ under a real name (e.g. AutoRepairModule.ahk),
+; delete this comment block, and fill in the sections below. This is the
+; ONLY place your macro's logic should live — both the standalone wrapper
+; (see templates/NewMacro.ahk.example) and src/DDToolkit.ahk #Include this
+; same file and call the same Init(), so there is exactly one copy of the
+; behavior to keep correct.
+;
+; 1. Add any tunables to config/settings.ini under a new [NewMacro]
+;    section, including "Enabled=true" — every module must support being
+;    turned off from DDToolkit's settings window.
+; 2. State lives in `static` class properties, not bare globals — several
+;    modules run in the same process inside DDToolkit.ahk, and plain
+;    globals with common names (like "running" or "intervalMs") would
+;    clobber each other.
+; 3. Static properties must be declared with `static Name := default` in
+;    the class body — assigning `this.Name := value` from inside a method
+;    to a name that was never declared isn't guaranteed to create a real
+;    static property in AHK v2.
+; 4. Keep every hotkey scoped to the game: `HotIfWinActive(DD.GameCriterion())`
+;    / `Hotkey(...)` / `HotIfWinActive()` (reset) — unless you have a
+;    specific documented reason for it to work globally (see
+;    AutoClickerModule, which is deliberately general-purpose behind its
+;    own ScopeToGame setting).
+; 5. Give the user audible/visual feedback on every state change —
+;    DD.Beep(bool) / DD.Notify(title, text) — never a silent toggle.
+; 6. Implement StatusText() — one short line, shown in DDToolkit's tray
+;    tooltip and usable by the standalone wrapper's startup notification.
+class NewMacroModule {
+    static Enabled := false
+    static ToggleKey := "F4"
+    static Running := false
+
+    static Init() {
+        this.Enabled := DD.ReadBool("NewMacro", "Enabled", true)
+        if !this.Enabled
+            return
+
+        this.ToggleKey := DD.Read("NewMacro", "ToggleKey", "F4")
+        this.Running := false
+
+        HotIfWinActive(DD.GameCriterion())
+        Hotkey(this.ToggleKey, ObjBindMethod(this, "Toggle"))
+        HotIfWinActive()
+    }
+
+    static Toggle(*) {
+        this.Running := !this.Running
+        DD.Beep(this.Running)
+        ; Your Send/Click/whatever goes here, or wire up a SetTimer like
+        ; AutoAbilityModule does for a repeating action.
+    }
+
+    static StatusText() {
+        if !this.Enabled
+            return "NewMacro : desactive"
+        return "NewMacro : " (this.Running ? "arme" : "au repos") " (" this.ToggleKey ")"
+    }
+}
