@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.1.0] - 2026-07-16
+
 ### Added
 - `src/Setup.ahk` détecte l'absence d'AutoHotkey v2 et propose (bouton
   explicite, jamais automatique sans clic) de le télécharger et
@@ -252,3 +254,4 @@
 ### Removed
 - `Auto E.ahk` (racine, v1).
 - `DDTurretStack.ahk.exe` (racine, binaire opaque).
+
