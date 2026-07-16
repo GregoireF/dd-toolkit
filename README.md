@@ -129,9 +129,9 @@ ce module.
    `ScopeToGame=false`, explicitement voulu pour un usage généraliste).
 
 ### AutoAbility.ahk
-- `F2` (configurable) : arme/désarme la boucle — un bip aigu/grave confirme
-  l'état sans avoir à regarder l'écran.
-- `F3` (configurable) : arrêt d'urgence, coupe le timer même si l'état
+- `ScrollLock` (configurable) : arme/désarme la boucle — un bip aigu/grave
+  confirme l'état sans avoir à regarder l'écran.
+- `Pause` (configurable) : arrêt d'urgence, coupe le timer même si l'état
   interne est désynchronisé.
 
 ### TowerStacking.ahk
@@ -143,7 +143,7 @@ ce module.
 
 ### AutoClicker.ahk
 - `CapsLock` (configurable) arme/désarme le turbo-fire du clic gauche,
-  `F6` (configurable) celui du clic droit — indépendants l'un de l'autre.
+  `Insert` (configurable) celui du clic droit — indépendants l'un de l'autre.
   Une fois armé, il faut quand même maintenir le bouton physiquement
   appuyé : il turbo-fire tant qu'il est maintenu, rien ne se déclenche
   tout seul.
@@ -162,6 +162,15 @@ ce module.
   source communautaire, mais si les couleurs ne matchent pas chez toi
   (calibration moniteur/HDR), ajuste `[AbilityWheelColors]` ou
   `ToleranceRGB`.
+- **Un spin qui ne se déclenche pas ? Touche `DiagnosticKey`** (Ctrl+Alt+D
+  par défaut, en jeu) : ouvre la roue et affiche un rapport (fenêtre +
+  `wheel-diagnostic.txt` à côté du script/exe) avec la résolution détectée
+  et la **vraie couleur lue** dans chacune des 3 cases, à comparer avec
+  `[AbilityWheelColors]`. Deux diagnostics possibles selon ce que le
+  rapport montre : si aucune des 3 couleurs lues ne ressemble à une
+  couleur connue, soit la roue ne s'est pas ouverte du tout
+  (`WheelHotbarSlot` ne correspond pas à ta touche de raccourci en jeu),
+  soit les valeurs hex sont à corriger pour ta version du jeu/moniteur.
 
 ### ChargeShot.ahk
 - `Ctrl+Espace` (configurable) : maintient le bouton d'attaque appuyé
