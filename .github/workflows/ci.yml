@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel a stale run when new commits land on the same PR/branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege by default; we only need to read the repo and (optionally)
+# upload build artifacts.
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # Pulled straight from the official AutoHotkey/AutoHotkey GitHub
+      # releases (portable zip, no installer/admin rights needed) instead of
+      # a third-party marketplace action, to keep the CI supply chain to a
+      # single trusted, official source.
+      - name: Install AutoHotkey v2 (official portable release)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "AutoHotkey_*.zip" } | Select-Object -First 1
+          if (-not $asset) { throw "No portable zip asset found on latest AutoHotkey release." }
+
+          $zipPath = "$env:RUNNER_TEMP\ahk.zip"
+          $attempts = 0
+          do {
+            $attempts++
+            try {
+              Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+              break
+            } catch {
+              if ($attempts -ge 3) { throw }
+              Write-Warning "Download failed (attempt $attempts/3), retrying in 5s..."
+              Start-Sleep -Seconds 5
+            }
+          } while ($true)
+
+          Expand-Archive -Path $zipPath -DestinationPath "$env:RUNNER_TEMP\ahk"
+          echo "AHK_DIR=$env:RUNNER_TEMP\ahk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Syntax smoke tests
+        shell: pwsh
+        run: .\tests\Test-Syntax.ps1 -AhkExe "$env:AHK_DIR\AutoHotkey64.exe"
+
+      - name: Build portable executables
+        shell: pwsh
+        run: .\build\Build-All.ps1 -Ahk2Exe "$env:AHK_DIR\Compiler\Ahk2Exe.exe" -Base "$env:AHK_DIR\AutoHotkey64.exe"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dd-toolkit-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

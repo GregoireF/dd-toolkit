@@ -1,0 +1,111 @@
+name: Release
+
+# Push a tag matching v*.*.* (created by scripts/Bump-Version.ps1) to build
+# the .exe files and publish them on a GitHub Release automatically. No
+# binary ever lives in git history; every release is rebuilt from source.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)release, e.g. v0.2.0"
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # never cancel a release publish mid-flight
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      # Expressions are resolved into an env var once here rather than
+      # interpolated directly into each run: block below — inputs.tag is
+      # free-form text typed by whoever dispatches this workflow, and
+      # splicing an untrusted `${{ }}` value straight into a shell script
+      # is the classic GitHub Actions injection vector. Reading it back as
+      # $env:TAG_NAME keeps it as plain data instead of script text.
+      TAG_NAME: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install AutoHotkey v2 (official portable release)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "AutoHotkey_*.zip" } | Select-Object -First 1
+          if (-not $asset) { throw "No portable zip asset found on latest AutoHotkey release." }
+
+          $zipPath = "$env:RUNNER_TEMP\ahk.zip"
+          $attempts = 0
+          do {
+            $attempts++
+            try {
+              Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $zipPath
+              break
+            } catch {
+              if ($attempts -ge 3) { throw }
+              Write-Warning "Download failed (attempt $attempts/3), retrying in 5s..."
+              Start-Sleep -Seconds 5
+            }
+          } while ($true)
+
+          Expand-Archive -Path $zipPath -DestinationPath "$env:RUNNER_TEMP\ahk"
+          echo "AHK_DIR=$env:RUNNER_TEMP\ahk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Syntax smoke tests
+        shell: pwsh
+        run: .\tests\Test-Syntax.ps1 -AhkExe "$env:AHK_DIR\AutoHotkey64.exe"
+
+      - name: Build portable executables
+        shell: pwsh
+        run: .\build\Build-All.ps1 -Ahk2Exe "$env:AHK_DIR\Compiler\Ahk2Exe.exe" -Base "$env:AHK_DIR\AutoHotkey64.exe"
+
+      - name: Bundle a combined zip (exes + config, self-contained)
+        shell: pwsh
+        run: |
+          $zipName = "dd-toolkit-$env:TAG_NAME.zip"
+          # Build-All.ps1 already copies config/settings.ini into dist/, so
+          # the loose .exe files there resolve it from their own folder —
+          # this bundle just packages that same self-contained layout as
+          # one download.
+          Compress-Archive -Path "dist\*.exe", "dist\settings.ini" -DestinationPath $zipName
+          echo "BUNDLE_PATH=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Extract this version's changelog section
+        shell: pwsh
+        run: |
+          $version = $env:TAG_NAME -replace '^v', ''
+          $changelog = Get-Content CHANGELOG.md -Raw
+          $pattern = "(?ms)^## \[?$([regex]::Escape($version))\]?.*?(?=^## |\z)"
+          if ($changelog -match $pattern) {
+            $Matches[0].Trim() | Out-File -FilePath notes.md -Encoding utf8
+          } else {
+            "Release $env:TAG_NAME" | Out-File -FilePath notes.md -Encoding utf8
+          }
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $files = (Get-ChildItem dist\*.exe).FullName + (Resolve-Path $env:BUNDLE_PATH).Path
+          gh release view $env:TAG_NAME *>$null
+          if ($LASTEXITCODE -eq 0) {
+            # Re-run via workflow_dispatch on an existing tag: update in place
+            # instead of erroring out.
+            gh release upload $env:TAG_NAME @files --clobber
+            gh release edit $env:TAG_NAME --notes-file notes.md
+          } else {
+            gh release create $env:TAG_NAME @files --title $env:TAG_NAME --notes-file notes.md
+          }
