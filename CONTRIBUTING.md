@@ -125,16 +125,26 @@ branches et le flux de PR.
 
 ```powershell
 .\tests\Test-Syntax.ps1
+.\tests\Run-UnitTests.ps1
 .\build\Build-All.ps1
 ```
 
-Ce sont des smoke tests (chargement/compilation sans erreur) — **pas** des
-tests fonctionnels. Il n'existe aucun moyen d'automatiser "est-ce que ça
-stacke vraiment en jeu" sans lancer Dungeon Defenders : teste toujours
-manuellement en jeu avant d'ouvrir une PR, et décris ce que tu as testé
-dans la description de la PR (le template te le demande).
+`Test-Syntax.ps1` est un smoke test (chargement sans erreur). `Run-UnitTests.ps1`
+va plus loin : de vraies assertions sur la logique de chaque module, `Init()`
+compris, avec les fonctions qui parlent à l'OS (`Send`, `PixelSearch`,
+`RegRead`...) remplacées par des doublures de test (`tests/Shims.ahk`) —
+donc aucune touche/clic réel n'est jamais envoyé pendant les tests. Si tu
+ajoutes un nouveau module ou une nouvelle méthode, ajoute ses tests dans
+`tests/*.test.ahk` (logique pure directement ; toute méthode qui touche
+l'OS via un nouveau `Shims.ahk`, sur le même modèle que l'existant).
 
-La CI (`.github/workflows/ci.yml`) relance ces deux mêmes scripts sur
+Aucun des deux n'est un test fonctionnel pour autant. Il n'existe aucun
+moyen d'automatiser "est-ce que ça stacke vraiment en jeu" sans lancer
+Dungeon Defenders : teste toujours manuellement en jeu avant d'ouvrir une
+PR, et décris ce que tu as testé dans la description de la PR (le
+template te le demande).
+
+La CI (`.github/workflows/ci.yml`) relance ces mêmes scripts sur
 `windows-latest` à chaque push/PR. `.github/dependabot.yml` garde les
 versions des actions GitHub utilisées à jour automatiquement (PR
 hebdomadaire si besoin).
@@ -164,7 +174,8 @@ automatiquement les notes de la Release.
       en commentaire).
 - [ ] Toute valeur ajustable est dans `config/settings.ini`, pas codée en
       dur.
-- [ ] `tests/Test-Syntax.ps1` et `build/Build-All.ps1` passent en local.
+- [ ] `tests/Test-Syntax.ps1`, `tests/Run-UnitTests.ps1` et
+      `build/Build-All.ps1` passent en local.
 - [ ] Testé manuellement en jeu.
 - [ ] README.md et CHANGELOG.md mis à jour si le comportement visible
       change.

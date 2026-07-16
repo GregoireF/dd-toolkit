@@ -23,6 +23,7 @@ npm install                          # only needed to use `npm run commit` / com
 
 # Everyday
 .\tests\Test-Syntax.ps1              # syntax/load smoke test for src/*.ahk
+.\tests\Run-UnitTests.ps1            # real assertions on every module's logic, Send/PixelSearch/etc. shimmed
 .\build\Build-All.ps1                # compiles src/*.ahk -> dist/*.exe (gitignored)
 npm run commit                       # interactive Conventional Commit + gitmoji prompt (cz-git)
 
@@ -31,9 +32,9 @@ npm run commit                       # interactive Conventional Commit + gitmoji
 git tag vX.Y.Z && git push --tags           # triggers .github/workflows/release.yml
 ```
 
-Both `tests/Test-Syntax.ps1` and `build/Build-All.ps1` take an `-AhkExe` /
-`-Ahk2Exe`/`-Base` override if AutoHotkey v2 isn't at the default
-`C:\Program Files\AutoHotkey\v2\...` path.
+`tests/Test-Syntax.ps1`, `tests/Run-UnitTests.ps1`, and `build/Build-All.ps1`
+all take an `-AhkExe` / `-Ahk2Exe`/`-Base` override if AutoHotkey v2 isn't
+at the default `C:\Program Files\AutoHotkey\v2\...` path.
 
 ## Code style — non-negotiable, not a style preference
 
@@ -62,6 +63,37 @@ Both `tests/Test-Syntax.ps1` and `build/Build-All.ps1` take an `-AhkExe` /
   slipped into this codebase once already. An unscoped `Send` is a bug
   unless the script is deliberately system-wide (document why inline if
   so).
+- **`ObjBindMethod(this, "X")` returns a brand-new object every call —
+  `SetTimer` identifies "which timer" solely by that object's identity,
+  not by target+method-name equivalence.** Arming with
+  `SetTimer(ObjBindMethod(this,"X"), period)` in one method and later
+  "disarming" with `SetTimer(ObjBindMethod(this,"X"), 0)` in a *different*
+  method call creates two distinct callbacks as far as `SetTimer` is
+  concerned — the disarm call silently does nothing to the timer that's
+  actually running. Verified empirically (a real 20ms timer kept firing
+  for hundreds of ms after being "disarmed" this way) after it shipped in
+  `AutoAbilityModule.Toggle()`/`Panic()` from v0.1.0 — the panic hotkey
+  updated the status text and played the stop-beep while the real
+  keypress timer kept running. Fix: bind once, store the result in a
+  static property (`BoundPressAbility`), and reuse that same reference
+  for every arm/disarm call. Any future module that arms a repeating
+  `SetTimer` with a bindable callback needs this pattern from the start,
+  not just AutoAbilityModule.
+- **`SetTimer(callback, period)` with a positive `period` never fires on
+  its own the instant it's armed** — the first execution only happens
+  after a full `period` has elapsed (confirmed in AutoHotkey's own docs).
+  A macro that arms on a long interval and expects to "do something
+  right away" needs an explicit immediate call in addition to arming the
+  timer (see `AutoAbilityModule.Toggle()`) — otherwise arming reads as
+  "did nothing" for however long the interval is, which is exactly what
+  shipped from v0.1.0 with the 47s default.
+- **`SetKeyDelay()` only affects *keyboard* keys sent by `Send`/
+  `SendEvent` — it has no effect on mouse buttons** (`LButton`,
+  `RButton`, etc.), which are governed by `SetMouseDelay()` instead
+  (confirmed in AutoHotkey's own docs). A module that only ever sends
+  mouse buttons and calls `SetKeyDelay` is calling a no-op — this shipped
+  in `AutoClickerModule` from v0.1.0, silently making its `IntervalMs`
+  setting have zero effect on the actual click rate.
 - **Shared code lives in `src/Lib/`**, included explicitly
   (`#Include Lib\Common.ahk`) — this repo does not rely on AutoHotkey's
   auto-lib-by-function-name lookup.
@@ -121,6 +153,58 @@ you change macro logic, say explicitly that it needs manual in-game
 verification; never claim a behavioral fix is confirmed working from the
 smoke test or a build succeeding alone.
 
+`tests/Run-UnitTests.ps1` (via `tests/RunTests.ahk`) is one level deeper
+than the smoke test: it runs real assertions, via the vendored
+[AutoHotUnit](https://github.com/joshuacc/AutoHotUnit) framework
+(`tests/vendor/AutoHotUnit.ahk`, MIT, single file, no other dependency),
+against **every** module's logic — not just the pure pieces. `Init()`
+runs for real on every module (config loading, real hotkey registration —
+see the `SetTimer` note above; a registered hotkey makes AHK persistent,
+and AutoHotUnitCLIReporter's own `onRunComplete()` ends the run with
+`Exit(count)`, which only ends the *current thread* once persistence has
+kicked in, not the process — verified empirically before `RunTests.ahk`'s
+custom `CIReporter` was written to call `ExitApp()` instead, confirmed to
+terminate regardless).
+
+Methods that would otherwise send real synthetic input or query the real
+OS/desktop — `PressAbility`/`Toggle`/`Panic`, `Stack`/`HandleHotkey`,
+`FireChargedShot`, `FireLeft`/`FireRight`/`TurboFire`, `SpinWheel`/
+`SlotMatches`, `ResolveInstallPath`/`AutoDetectInstallPath`/`Apply*Fix` —
+are also fully tested, via `tests/Shims.ahk`: a same-named user-defined
+function overrides a built-in for the rest of a script in AHK v2
+(verified empirically), so `Send`, `SendEvent`, `GetKeyState`,
+`PixelSearch`, `WinExist`, `WinGetPos`, `SetTimer`, `DirSelect`, `MsgBox`,
+and `RegRead` are all replaced with deterministic, resettable recorders/
+stubs for the whole test process. This means the real Send()-calling
+code runs end to end in every test, but no real keystroke, click, screen
+read, modal dialog, or registry query ever reaches the OS or the live
+desktop — the same category of risk as simulated mouse/keyboard input
+(see the GUI/input testing section above), neutralized at the source
+instead of avoided by not testing the method at all. `GetKeyState(key,
+"P")` deserves a callout: it's immune to synthetic `Send()`/`SendEvent()`
+by AHK's own design (verified empirically), so `AutoClickerModule.
+TurboFire()`'s loop is fundamentally untestable through any real input in
+*any* environment — only `Shims.KeyStatePMode` can exercise it.
+
+Because the shim override is global and total for the rest of the
+process (there's no "call the real one as a fallback" once a name is
+shadowed), a test that genuinely needs real OS behavior from one of
+those ten functions doesn't belong in this suite — none currently do.
+`Shims.Reset()` in each suite's `beforeEach()` keeps tests isolated from
+each other; `GameTweaksSuite`'s `afterEach()` additionally resets
+`GameTweaksModule.InstallPath` and rewrites it to `""` in the fixture
+ini, since `ResolveInstallPath()`/`AutoDetectInstallPath()` persist a
+found path via `DD.Write` — without that cleanup, a scratch path from one
+test run would leak into `tests/settings.ini` and show up as a stray git
+diff.
+
+Neither level proves a hotkey fires correctly against a live game
+window — that gap is exactly what `Test-Syntax.ps1`'s own limitation
+above describes, and still requires a human in Dungeon Defenders. When
+adding a new module, add its logic here — pure functions directly,
+anything OS-touching via a new `Shims.ahk` entry following the existing
+pattern — rather than leaving it covered only by the load smoke test.
+
 ## Security boundaries
 
 Scripts in `src/` only call Windows `SendInput` targeted at the configured
@@ -166,7 +250,10 @@ templates/*.example    Starting point for a new macro
 scripts/*.ps1          One-off maintenance (hook install, version bump)
 build/Build-All.ps1    src/*.ahk -> dist/*.exe + settings.ini (dist/ is gitignored)
 tests/Test-Syntax.ps1  Load smoke test (see boundary above)
-.github/workflows/     ci.yml (smoke test+build), release.yml (tag -> GitHub Release),
+tests/Run-UnitTests.ps1 Real assertions on every module's logic (see boundary above)
+tests/Shims.ahk        Test doubles for OS-touching built-ins (Send, PixelSearch, RegRead, ...)
+tests/vendor/          Vendored AutoHotUnit.ahk (MIT) — the test framework itself
+.github/workflows/     ci.yml (smoke test+unit tests+build), release.yml (tag -> GitHub Release),
                        commitlint.yml (PR commit messages)
 .githooks/             Versioned git hooks (core.hooksPath) — pre-commit, commit-msg
 ```

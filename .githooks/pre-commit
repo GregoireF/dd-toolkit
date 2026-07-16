@@ -1,27 +1,38 @@
 #!/bin/sh
-# Runs the syntax smoke test before allowing a commit that touches src/*.ahk.
+# Runs the syntax smoke test + unit test suite before allowing a commit
+# that touches src/*.ahk or tests/*.ahk.
 # Installed once per clone with: .\scripts\Install-Hooks.ps1
 # (sets core.hooksPath so git picks up this versioned folder instead of
 # the untracked, per-clone .git/hooks/ directory).
 
-changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^src/.*\.ahk$')
+changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(src|tests)/.*\.ahk$')
 if [ -z "$changed" ]; then
   exit 0
 fi
 
 AHK_EXE="/c/Program Files/AutoHotkey/v2/AutoHotkey64.exe"
 if [ ! -f "$AHK_EXE" ]; then
-  echo "AutoHotkey v2 introuvable en local (${AHK_EXE}) — smoke test ignore, la CI la fera. Passe -AhkExe si ton install est ailleurs."
+  echo "AutoHotkey v2 introuvable en local (${AHK_EXE}) — verifications ignorees, la CI les fera. Passe -AhkExe si ton install est ailleurs."
   exit 0
 fi
 
-echo "src/*.ahk modifie(s) — verification syntaxe..."
+echo "src/*.ahk ou tests/*.ahk modifie(s) — verification syntaxe..."
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "tests/Test-Syntax.ps1"
 status=$?
 
 if [ $status -ne 0 ]; then
   echo "Smoke test en echec — commit annule. Corrige le script ou lance"
   echo "tests/Test-Syntax.ps1 en local pour voir le detail de l'erreur."
+  exit $status
+fi
+
+echo "Verification des tests unitaires..."
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "tests/Run-UnitTests.ps1"
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "Tests unitaires en echec — commit annule. Lance"
+  echo "tests/Run-UnitTests.ps1 en local pour voir le detail de l'erreur."
 fi
 
 exit $status

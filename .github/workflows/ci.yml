@@ -73,6 +73,10 @@ jobs:
         shell: pwsh
         run: .\tests\Test-Syntax.ps1 -AhkExe "$env:AHK_DIR\AutoHotkey64.exe"
 
+      - name: Unit tests
+        shell: pwsh
+        run: .\tests\Run-UnitTests.ps1 -AhkExe "$env:AHK_DIR\AutoHotkey64.exe"
+
       - name: Build portable executables
         shell: pwsh
         run: .\build\Build-All.ps1 -Ahk2Exe "$env:AHK_DIR\Compiler\Ahk2Exe.exe" -Base "$env:AHK_DIR\AutoHotkey64.exe"
