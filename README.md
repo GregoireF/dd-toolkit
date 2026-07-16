@@ -2,10 +2,8 @@
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![AutoHotkey v2](https://img.shields.io/badge/AutoHotkey-v2.0-green.svg)
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-
-> Remplace `OWNER/REPO` ci-dessus par le chemin réel une fois le repo
-> poussé sur GitHub — le badge CI ne peut pas se résoudre avant.
+[![CI](https://github.com/GregoireF/dd-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/GregoireF/dd-toolkit/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/GregoireF/dd-toolkit)](https://github.com/GregoireF/dd-toolkit/releases/latest)
 
 Boîte à outils AutoHotkey v2 pour Dungeon Defenders Redux : macros de
 gameplay (relance d'ability, tower stacking, autoclicker, roue Jester,
