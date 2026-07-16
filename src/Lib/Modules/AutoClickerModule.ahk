@@ -11,7 +11,7 @@ class AutoClickerModule {
     static Enabled := false
     static IntervalMs := 20
     static LeftToggleKey := "CapsLock"
-    static RightToggleKey := "F6"
+    static RightToggleKey := "Insert"
     static ScopeToGame := true
     static LeftActive := false
     static RightActive := false
@@ -23,12 +23,18 @@ class AutoClickerModule {
 
         this.IntervalMs := DD.ReadInt("AutoClicker", "IntervalMs", "20")
         this.LeftToggleKey := DD.Read("AutoClicker", "LeftToggleKey", "CapsLock")
-        this.RightToggleKey := DD.Read("AutoClicker", "RightToggleKey", "F6")
+        this.RightToggleKey := DD.Read("AutoClicker", "RightToggleKey", "Insert")
         this.ScopeToGame := DD.ReadBool("AutoClicker", "ScopeToGame", true)
         this.LeftActive := false
         this.RightActive := false
 
-        SetKeyDelay(this.IntervalMs, this.IntervalMs)
+        ; SetKeyDelay only governs *keyboard* keys sent by Send/SendEvent —
+        ; it has zero effect on mouse buttons like LButton/RButton, which
+        ; are governed by SetMouseDelay instead (verified against
+        ; AutoHotkey's own docs). This module only ever sends mouse
+        ; buttons, so the SetKeyDelay call here was silently a no-op:
+        ; IntervalMs never actually controlled the click rate at all.
+        SetMouseDelay(this.IntervalMs)
 
         ; Toggle keys always work regardless of ScopeToGame — arming/
         ; disarming sends no input, so there's nothing to scope.
