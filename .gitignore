@@ -1,0 +1,6 @@
+dist/
+*.exe
+
+# Node tooling (commitlint/cz-git) — dev-only, not needed to run the macros
+node_modules/
+npm-debug.log*
