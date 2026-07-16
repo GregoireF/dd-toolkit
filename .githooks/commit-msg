@@ -1,0 +1,15 @@
+#!/bin/sh
+# Lints the commit message against commitlint.config.js (Conventional
+# Commits, optional leading gitmoji). Installed once per clone with:
+#   .\scripts\Install-Hooks.ps1
+#
+# Skips silently if `npm install` hasn't been run yet, so it never blocks a
+# contributor who hasn't set up the Node tooling — .github/workflows/commitlint.yml
+# is the real gate on the PR itself.
+
+if [ ! -d "node_modules/@commitlint" ]; then
+  echo "node_modules absent (lance 'npm install' pour activer le lint local des messages de commit) — verification laissee a la CI."
+  exit 0
+fi
+
+npx --no-install commitlint --edit "$1"

@@ -1,0 +1,26 @@
+{
+  "name": "dd-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Commit tooling (commitlint + cz-git) for the DD Toolkit repo. The macros themselves are AutoHotkey v2 / PowerShell and need no Node runtime to use this project's actual macros — this is dev-only tooling for contributors writing commits.",
+  "scripts": {
+    "commit": "cz",
+    "commitlint": "commitlint --edit",
+    "test": "powershell -NoProfile -File tests/Test-Syntax.ps1",
+    "build": "powershell -NoProfile -File build/Build-All.ps1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
+    "commitizen": "^4.3.2",
+    "cz-git": "^1.13.0"
+  },
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
