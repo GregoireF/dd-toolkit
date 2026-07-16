@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.2.0] - 2026-07-16
+
 ### Added
 - `AbilityWheelModule.DiagnoseSlots` : nouvelle touche `DiagnosticKey`
   (Ctrl+Alt+D par défaut, en jeu) qui ouvre la roue et rapporte la

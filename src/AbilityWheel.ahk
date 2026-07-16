@@ -5,7 +5,7 @@
 
 ;@Ahk2Exe-SetName AbilityWheel
 ;@Ahk2Exe-SetDescription Jester Wheel of Fortune automation for Dungeon Defenders Redux
-;@Ahk2Exe-SetVersion 0.1.0.0
+;@Ahk2Exe-SetVersion 0.2.0.0
 ;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Standalone entry point: just starts the module. The module itself

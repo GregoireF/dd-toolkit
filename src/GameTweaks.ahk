@@ -5,7 +5,7 @@
 
 ;@Ahk2Exe-SetName GameTweaks
 ;@Ahk2Exe-SetDescription Applies known and documented Dungeon Defenders Redux config fixes
-;@Ahk2Exe-SetVersion 0.1.0.0
+;@Ahk2Exe-SetVersion 0.2.0.0
 ;@Ahk2Exe-SetCopyright DD Toolkit contributors - MIT License
 
 ; Standalone tool (not a background macro — no repeating hotkeys):
